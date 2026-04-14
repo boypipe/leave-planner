@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SG Leave Planner</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f5f3; --bg3: #e8e8e4; --bg4: #dcdcd8;
+  --text: #1a1a18; --text2: #6b6b67; --text3: #a0a09c;
+  --bdr: rgba(0,0,0,0.12); --bdr2: rgba(0,0,0,0.22);
+  --blue: #378ADD; --blue-bg: #E6F1FB; --blue-txt: #0C447C;
+  --green-bg: #E1F5EE; --green-txt: #085041; --green-bdr: #1D9E75;
+  --red: #E24B4A; --red-bg: #FCEBEB; --red-txt: #A32D2D;
+  --r: 8px; --rl: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#1e1e1c; --bg2:#2a2a28; --bg3:#313130; --bg4:#3a3a38;
+    --text:#f0f0ec; --text2:#a8a8a4; --text3:#686864;
+    --bdr:rgba(255,255,255,0.10); --bdr2:rgba(255,255,255,0.18);
+    --blue-bg:#042C53; --blue-txt:#B5D4F4;
+    --green-bg:#04342C; --green-txt:#9FE1CB;
+    --red-bg:#501313; --red-txt:#F7C1C1;
+  }
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 13px; color: var(--text); background: var(--bg3);
+  min-height: 100vh; padding: 20px 14px 40px;
+}
+.wrap { max-width: 960px; margin: 0 auto; }
+.top-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; justify-content:space-between; }
+.app-title { font-size:18px; font-weight:500; }
+.year-nav { display:flex; align-items:center; gap:6px; }
+.yn-btn { width:30px; height:30px; border:0.5px solid var(--bdr2); border-radius:var(--r); background:var(--bg); cursor:pointer; color:var(--text); font-size:17px; display:flex; align-items:center; justify-content:center; }
+.yn-btn:hover { background:var(--bg2); }
+.yr-num { font-size:16px; font-weight:500; min-width:44px; text-align:center; }
+.legend { display:flex; gap:14px; font-size:12px; color:var(--text2); align-items:center; }
+.leg { display:flex; align-items:center; gap:5px; }
+.dot-ph { width:7px; height:7px; border-radius:50%; background:var(--red); }
+.strip-sel { width:14px; height:5px; border-radius:3px; background:var(--blue); }
+.cal-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+@media(max-width:700px){ .cal-grid{ grid-template-columns:repeat(3,1fr); } }
+@media(max-width:500px){ .cal-grid{ grid-template-columns:repeat(2,1fr); } }
+.month-card { background:var(--bg); border:0.5px solid var(--bdr); border-radius:var(--rl); padding:10px 8px; }
+.mname { font-size:12px; font-weight:500; color:var(--text2); text-align:center; margin-bottom:6px; }
+.dow-row { display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:2px; }
+.dow { font-size:10px; color:var(--text3); text-align:center; }
+.days { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; }
+.day {
+  position:relative; aspect-ratio:1;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; cursor:pointer; border-radius:4px;
+  color:var(--text); user-select:none; -webkit-user-select:none;
+  transition: background 0.05s;
+}
+.day.empty { pointer-events:none; visibility:hidden; }
+.day.wknd { color:var(--text2); }
+.day.phday { color:var(--red-txt); font-weight:500; }
+.day.is-today::after { content:''; position:absolute; bottom:2px; left:50%; transform:translateX(-50%); width:3px; height:3px; border-radius:50%; background:currentColor; opacity:.4; }
+.ph-dot { position:absolute; top:1px; right:2px; width:4px; height:4px; border-radius:50%; background:var(--red); pointer-events:none; }
+.day:not(.empty):hover { background:var(--bg2); }
+.day.sel-on .ph-dot { background:rgba(255,255,255,0.8); }
+
+.sec-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.sec-lbl { font-size:11px; font-weight:500; color:var(--text2); text-transform:uppercase; letter-spacing:.06em; }
+.add-rng-btn { font-size:12px; padding:4px 10px; border:0.5px solid var(--bdr2); border-radius:6px; background:var(--bg); cursor:pointer; color:var(--text2); font-family:inherit; }
+.add-rng-btn:hover { background:var(--bg2); }
+.rng-list { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; min-height:40px; }
+.rng-empty { font-size:12px; color:var(--text3); padding:8px 0; }
+.rng-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--bg); border:0.5px solid var(--bdr); border-radius:var(--r); padding:9px 12px; cursor:pointer; }
+.rng-row.active { border-color:var(--blue); background:var(--blue-bg); }
+.rng-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.rng-label { flex:1; font-size:12px; color:var(--text2); min-width:130px; line-height:1.4; }
+.rng-label b { color:var(--text); font-weight:500; }
+.rng-label .hint { color:var(--blue); font-style:italic; }
+.tkt-wrap { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text2); }
+.tkt-wrap input { width:90px; padding:4px 7px; border:0.5px solid var(--bdr2); border-radius:5px; background:var(--bg2); color:var(--text); font-size:12px; font-family:inherit; outline:none; }
+.tkt-wrap input:focus { border-color:var(--blue); }
+.del { width:24px; height:24px; border:none; background:none; cursor:pointer; color:var(--text3); font-size:16px; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.del:hover { background:var(--bg2); color:var(--text2); }
+.cmp-btn { width:100%; padding:10px; font-size:14px; font-weight:500; font-family:inherit; background:var(--bg2); color:var(--text); border:0.5px solid var(--bdr2); border-radius:var(--r); cursor:pointer; margin-bottom:16px; }
+.cmp-btn:hover { background:var(--bg4); }
+.info-bar { background:var(--bg2); border-radius:var(--r); padding:9px 12px; font-size:12px; color:var(--text2); margin-bottom:10px; line-height:1.55; }
+.res-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
+.rcard { background:var(--bg); border:0.5px solid var(--bdr); border-radius:var(--rl); padding:14px 16px; }
+.rcard.winner { border:1.5px solid var(--green-bdr); }
+.w-badge { display:inline-block; background:var(--green-bg); color:var(--green-txt); font-size:11px; font-weight:500; border-radius:20px; padding:2px 9px; margin-bottom:7px; }
+.rtitle { font-size:13px; font-weight:500; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+.rtitle-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-bottom:10px; }
+.stat { background:var(--bg2); border-radius:7px; padding:9px; text-align:center; }
+.stat-n { font-size:20px; font-weight:500; }
+.stat-n.red { color:var(--red-txt); }
+.stat-l { font-size:10px; color:var(--text2); margin-top:2px; line-height:1.3; }
+.rrow { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); margin-bottom:4px; }
+.rrow span:last-child { color:var(--text); font-weight:500; }
+.rdivider { border:none; border-top:0.5px solid var(--bdr); margin:8px 0; }
+.ph-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
+.ph-tag { background:var(--red-bg); color:var(--red-txt); font-size:11px; border-radius:4px; padding:2px 6px; }
+footer { text-align:center; font-size:11px; color:var(--text3); margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-bar">
+    <input type="file" id="ics-upload" accept=".ics" style="font-size:12px;">
+    <span class="app-title">SG leave planner</span>
+    <div class="year-nav">
+      <button class="yn-btn" id="yr-prev">&#8249;</button>
+      <span class="yr-num" id="yr-lbl">2026</span>
+      <button class="yn-btn" id="yr-next">&#8250;</button>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="dot-ph"></div> Public holiday</div>
+      <div class="leg"><div class="strip-sel"></div> Selected range</div>
+    </div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div>
+    <div class="sec-hdr">
+      <span class="sec-lbl">Ranges</span>
+      <button class="add-rng-btn" id="add-btn">+ Add range</button>
+    </div>
+    <div class="rng-list" id="rng-list"></div>
+  </div>
+  <button class="cmp-btn" id="cmp-btn">Compare ranges</button>
+  <div id="results"></div>
+  <footer>Plan leaves</footer>
+</div>
+
+<script>
+(function () {
+
+function applyInLieuHolidays(phList, phNames, year) {
+  var set = new Set(phList);
+
+  phList.forEach(function(dateStr) {
+    var d = s2d(dateStr);
+    var day = d.getDay();
+
+    if (day === 0) { // Sunday → Monday
+      var monday = new Date(d);
+      monday.setDate(d.getDate() + 1);
+
+      var mondayStr = d2s(monday);
+      set.add(mondayStr);
+
+      var originalName = (phNames[year] || {})[dateStr] || "Public Holiday";
+      phNames[year][mondayStr] = originalName + " (in lieu)";
+    }
+  });
+
+  return Array.from(set).sort();
+}
+
+  var PH = {};      // { 2026: ["2026-01-01", ...] }
+  var ALL_PH = {};  // flattened lookup
+  
+
+  var year = 2026, ranges = [], nid = 0, activeId = null, hoverDate = null;
+  function parseICS(text) {
+    var events = [];
+    var lines = text.split(/\r?\n/);
+
+    var current = {};
+
+    lines.forEach(function(line) {
+
+      if (line.startsWith("BEGIN:VEVENT")) {
+        current = {};
+      }
+
+      if (line.startsWith("DTSTART")) {
+        var raw = line.split(":")[1]?.trim();
+        if (raw && raw.length === 8) {
+          current.date = raw.slice(0,4) + "-" + raw.slice(4,6) + "-" + raw.slice(6,8);
+        }
+      }
+
+      if (line.startsWith("SUMMARY")) {
+        current.name = line.split(":")[1]?.trim();
+      }
+
+      if (line.startsWith("END:VEVENT")) {
+        if (current.date) {
+          events.push({
+            date: current.date,
+            name: current.name || "Public Holiday"
+          });
+        }
+      }
+
+    });
+
+    return events;
+  }
+  function d2s(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function s2d(s) { var p=s.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]); }
+  function isWd(d) { var w=d.getDay(); return w!==0&&w!==6; }
+  function fmtL(s) { return s ? s2d(s).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) : '—'; }
+  function fmtS(s) { return s ? s2d(s).toLocaleDateString('en-SG',{day:'numeric',month:'short'}) : '—'; }
+  function today() { return d2s(new Date()); }
+
+  var COLORS  = ["#378ADD","#1D9E75","#D85A30","#7F77DD","#BA7517","#D4537E"];
+  var BGCOLS  = ["#dbeeff","#d0f5e8","#fde8de","#eae8fd","#faebd0","#fce4ef"];
+  var TXTCOLS = ["#0C447C","#085041","#712B13","#3C3489","#633806","#72243E"];
+
+
+  function rebuildAllPH() {
+  ALL_PH = {};
+  Object.keys(PH).forEach(function(y) {
+    PH[y].forEach(function(d) {
+      ALL_PH[d] = true;
+    });
+  });
+}
+
+rebuildAllPH();
+
+  function addRange() {
+    var id = ++nid;
+    ranges.push({ id:id, start:null, end:null, ticket:0, ci: (ranges.length) % COLORS.length });
+    activeId = id;
+    drawRanges(); 
+    drawCal();
+  }
+
+  function removeRange(id) {
+    ranges = ranges.filter(function(r){ return r.id !== id; });
+    if (activeId === id) activeId = ranges.length ? ranges[ranges.length-1].id : null;
+    drawRanges(); 
+    drawCal();
+    document.getElementById('results').innerHTML = '';
+  }
+
+  function clickDay(ds) {
+    if (!activeId) { 
+      addRange(); 
+    }
+    var r = null;
+    for (var i = 0; i < ranges.length; i++) {
+      if (ranges[i].id === activeId) {
+        r = ranges[i];
+        break;
+      }
+    }
+    if (!r) return;
+    
+    if (!r.start || r.end) { 
+      r.start = ds; 
+      r.end = null; 
+    } else {
+      if (ds < r.start) { 
+        r.end = r.start; 
+        r.start = ds; 
+      } else if (ds === r.start) { 
+        r.start = null; 
+        r.end = null; 
+      } else { 
+        r.end = ds; 
+      }
+    }
+    drawRanges(); 
+    drawCal();
+    document.getElementById('results').innerHTML = '';
+  }
+
+  function getRI(ds) {
+    for (var i=0; i<ranges.length; i++) {
+      var r = ranges[i];
+      if (!r.start) continue;
+      var rawEnd = r.end || (r.id === activeId ? hoverDate : null);
+      if (!rawEnd) { 
+        if (ds === r.start) return {r:r, type:'single'}; 
+        continue; 
+      }
+      var s = r.start <= rawEnd ? r.start : rawEnd;
+      var e = r.start <= rawEnd ? rawEnd : r.start;
+      if (ds < s || ds > e) continue;
+      if (ds === s && ds === e) return {r:r, type:'single'};
+      if (ds === s) return {r:r, type:'start'};
+      if (ds === e) return {r:r, type:'end'};
+      return {r:r, type:'mid'};
+    }
+    return null;
+  }
+
+  function drawCal() {
+    var phSet = {};
+    if (PH[year]) {
+      PH[year].forEach(function(d){ phSet[d]=true; });
+    }
+    var td = today();
+    var MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var frag = document.createDocumentFragment();
+
+    for (var m=0; m<12; m++) {
+      var card = document.createElement('div');
+      card.className = 'month-card';
+      var mname = document.createElement('div');
+      mname.className = 'mname';
+      mname.textContent = MN[m];
+      card.appendChild(mname);
+
+      var dowRow = document.createElement('div');
+      dowRow.className = 'dow-row';
+      ['S','M','T','W','T','F','S'].forEach(function(x){
+        var d = document.createElement('div');
+        d.className = 'dow'; 
+        d.textContent = x;
+        dowRow.appendChild(d);
+      });
+      card.appendChild(dowRow);
+
+      var daysDiv = document.createElement('div');
+      daysDiv.className = 'days';
+
+      var first = new Date(year, m, 1).getDay();
+      var dim = new Date(year, m+1, 0).getDate();
+
+      for (var i=0; i<first; i++) {
+        var emp = document.createElement('div');
+        emp.className = 'day empty';
+        daysDiv.appendChild(emp);
+      }
+
+      for (var d=1; d<=dim; d++) {
+        var ds = year + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        var isPH = !!phSet[ds];
+        var dow = new Date(year, m, d).getDay();
+        var isWknd = dow===0||dow===6;
+        var ri = getRI(ds);
+
+        var el = document.createElement('div');
+        
+        var cls = 'day';
+        if (isWknd) cls += ' wknd';
+        if (isPH) cls += ' phday';
+        if (ds === td) cls += ' is-today';
+        if (ri && ri.type !== 'mid') cls += ' sel-on';
+        el.className = cls;
+        el.textContent = d;
+        el.dataset.date = ds;
+
+        if (ri) {
+          var ci = ri.r.ci;
+          if (ri.type === 'mid') {
+            el.style.background = BGCOLS[ci];
+            el.style.color = TXTCOLS[ci];
+            el.style.borderRadius = '0';
+          } else {
+            el.style.background = COLORS[ci];
+            el.style.color = '#fff';
+            if (ri.type === 'start') el.style.borderRadius = '4px 0 0 4px';
+            else if (ri.type === 'end') el.style.borderRadius = '0 4px 4px 0';
+            else el.style.borderRadius = '4px';
+          }
+        }
+
+        if (isPH) {
+          var dot = document.createElement('span');
+          dot.className = 'ph-dot';
+          el.appendChild(dot);
+        }
+
+        el.addEventListener('click', (function(dateStr) {
+          return function() { clickDay(dateStr); };
+        })(ds));
+        
+
+
+        daysDiv.appendChild(el);
+      }
+      card.appendChild(daysDiv);
+      frag.appendChild(card);
+    }
+
+    var grid = document.getElementById('cal-grid');
+    grid.innerHTML = '';
+    grid.appendChild(frag);
+  }
+
+  function drawRanges() {
+    var el = document.getElementById('rng-list');
+    if (!ranges.length) {
+      el.innerHTML = '<div class="rng-empty">Click "+ Add range" then tap a start and end date on the calendar above.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    ranges.forEach(function(r) {
+      var row = document.createElement('div');
+      row.className = 'rng-row' + (r.id===activeId ? ' active' : '');
+
+      var dot = document.createElement('div');
+      dot.className = 'rng-dot';
+      dot.style.background = COLORS[r.ci];
+      row.appendChild(dot);
+
+      var lbl = document.createElement('div');
+      lbl.className = 'rng-label';
+      if (!r.start) lbl.innerHTML = '<span style="color:var(--text3)">Click a start date on the calendar</span>';
+      else if (!r.end) lbl.innerHTML = '<b>' + fmtS(r.start) + '</b> – <span class="hint">click end date…</span>';
+      else lbl.innerHTML = '<b>' + fmtS(r.start) + '</b> – <b>' + fmtS(r.end) + '</b>';
+      row.appendChild(lbl);
+
+      var tkt = document.createElement('div');
+      tkt.className = 'tkt-wrap';
+      tkt.innerHTML = '<span>SGD</span>';
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.placeholder = 'air ticket';
+      if (r.ticket) inp.value = r.ticket;
+      inp.addEventListener('click', function(e){ e.stopPropagation(); });
+      inp.addEventListener('input', (function(id){ 
+        return function() { 
+          var rr = ranges.filter(function(x){ return x.id===id; })[0]; 
+          if(rr) rr.ticket = parseFloat(this.value)||0; 
+        }; 
+      })(r.id));
+      tkt.appendChild(inp);
+      row.appendChild(tkt);
+
+      var del = document.createElement('button');
+      del.className = 'del'; del.title = 'Remove'; del.innerHTML = '&#215;';
+      del.addEventListener('click', (function(id){ 
+        return function(e){ e.stopPropagation(); removeRange(id); }; 
+      })(r.id));
+      row.appendChild(del);
+
+      row.addEventListener('click', (function(id){ 
+        return function(){ activeId=id; drawRanges(); drawCal(); }; 
+      })(r.id));
+      el.appendChild(row);
+    });
+  }
+  var PH_NAMES = {}; // 🔥 NEW
+
+document.getElementById('ics-upload').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+
+  reader.onload = function(evt) {
+    var events = parseICS(evt.target.result);
+
+    PH = {};
+    PH_NAMES = {};
+
+    events.forEach(function(ev) {
+      var y = ev.date.slice(0,4);
+
+      if (!PH[y]) PH[y] = [];
+      if (!PH_NAMES[y]) PH_NAMES[y] = {};
+
+      PH[y].push(ev.date);
+      PH_NAMES[y][ev.date] = ev.name;
+    });
+
+    // apply in-lieu
+    Object.keys(PH).forEach(function(y) {
+      PH[y] = applyInLieuHolidays(PH[y], PH_NAMES, y);
+
+    });
+
+    rebuildAllPH();
+    drawCal();
+  };
+
+  reader.readAsText(file);
+});
+
+  function analyze(sv, ev) {
+    var cur = s2d(sv), end = s2d(ev);
+    var leave=0, ph=0, phList=[];
+    var c = new Date(cur);
+    while (c <= end) {
+      var ds = d2s(c);
+      if (isWd(c)) { 
+        if (ALL_PH[ds]) { 
+          ph++; 
+          phList.push(ds); 
+        } else leave++; 
+      }
+      c.setDate(c.getDate()+1);
+    }
+    var total = Math.round((end - cur) / 864e5) + 1;
+    return { total:total, leave:leave, ph:ph, phList:phList, eff: leave>0 ? total/leave : total };
+  }
+
+  function calculate() {
+    var res = document.getElementById('results');
+    var valid = ranges.filter(function(r){ return r.start && r.end; });
+    if (!valid.length) { res.innerHTML = '<div class="info-bar">Select at least one complete date range first.</div>'; return; }
+    var data = valid.map(function(r){ return Object.assign({}, r, analyze(r.start, r.end)); });
+    var hasT = data.some(function(r){ return r.ticket > 0; });
+    var sorted = data.slice().sort(function(a,b){
+      if (hasT && a.ticket>0 && b.ticket>0) return (a.ticket/a.total)-(b.ticket/b.total);
+      return b.eff - a.eff;
+    });
+    var html = '';
+    if (data.length > 1) {
+      var by = hasT ? 'cost per trip day — lower is better' : 'trip days per leave day — higher is more efficient';
+      html += '<div class="info-bar">Ranked by ' + by + '. Weekends and public holidays are free — no leave needed.</div>';
+    }
+    sorted.forEach(function(r, i) {
+      var win = i===0 && data.length>1;
+      html += '<div class="rcard' + (win?' winner':'') + '">';
+      if (win) html += '<div class="w-badge">Best value</div>';
+      html += '<div class="rtitle"><div class="rtitle-dot" style="background:'+COLORS[r.ci]+'"></div>' + fmtL(r.start) + ' – ' + fmtL(r.end) + '</div>';
+      html += '<div class="stat-row">';
+      html += '<div class="stat"><div class="stat-n">'+r.total+'</div><div class="stat-l">total trip days</div></div>';
+      html += '<div class="stat"><div class="stat-n">'+r.leave+'</div><div class="stat-l">leave days needed</div></div>';
+      html += '<div class="stat"><div class="stat-n red">'+r.ph+'</div><div class="stat-l">public holidays</div></div>';
+      html += '</div>';
+      html += '<div class="rrow"><span>Trip days per leave day</span><span>'+r.eff.toFixed(1)+'x</span></div>';
+      if (r.ticket > 0) {
+        html += '<hr class="rdivider">';
+        html += '<div class="rrow"><span>Air ticket</span><span>SGD '+r.ticket.toLocaleString()+'</span></div>';
+        html += '<div class="rrow"><span>Cost per trip day</span><span>SGD '+Math.round(r.ticket/r.total)+'/day</span></div>';
+      }
+      if (r.phList.length) {
+        html += '<div class="ph-tags">';
+        r.phList.forEach(function(d){ html += '<div class="ph-tag">'+fmtS(d)+' · '+((PH_NAMES[r.start.slice(0,4)] || {})[d] || 'Public Holiday')+'</div>'; });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    res.innerHTML = '<div class="res-list">'+html+'</div>';
+  }
+
+  // Set up event listeners
+  document.getElementById('yr-prev').addEventListener('click', function(){ 
+    year--; 
+    document.getElementById('yr-lbl').textContent=year; 
+    drawCal(); 
+  });
+  
+  document.getElementById('yr-next').addEventListener('click', function(){ 
+    year++; 
+    document.getElementById('yr-lbl').textContent=year; 
+    drawCal(); 
+  });
+  
+  document.getElementById('add-btn').addEventListener('click', addRange);
+  document.getElementById('cmp-btn').addEventListener('click', calculate);
+
+
+  // Initialize the app
+  addRange();
+  drawCal();
+  drawRanges();
+  
+})();
+</script>
+</body>
+</html>
