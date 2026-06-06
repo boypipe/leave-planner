@@ -129,6 +129,9 @@ footer { text-align:center; font-size:11px; color:var(--text3); margin-top:8px; 
   <button class="cmp-btn" id="cmp-btn">Compare ranges</button>
   <div id="results"></div>
   <footer>Plan leaves</footer>
+  <footer class="footer">
+    👁️ <span id="views">...</span> views
+  </footer>
 </div>
 
 <script>
@@ -556,6 +559,18 @@ document.getElementById('ics-upload').addEventListener('change', function(e) {
   drawRanges();
   
 })();
+</script>
+<script>
+fetch('https://countapi.mileshilliard.com/api/v1/hit/boypipe-leave-planner')
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById('views').textContent =
+      data.value.toLocaleString();
+  })
+  .catch(err => {
+    console.error(err);
+    document.getElementById('views').textContent = '?';
+  });
 </script>
 </body>
 </html>
